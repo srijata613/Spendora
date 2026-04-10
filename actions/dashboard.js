@@ -6,40 +6,55 @@ import { request } from "@arcjet/next";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
-  // Helpers
+/* ------------------ Helpers ------------------ */
 
 const serializeTransaction = (obj) => {
   const serialized = { ...obj };
 
-  if (obj.balance) serialized.balance = obj.balance.toNumber();
-  if (obj.amount) serialized.amount = obj.amount.toNumber();
+  if (obj?.balance && typeof obj.balance.toNumber === "function") {
+    serialized.balance = obj.balance.toNumber();
+  }
+
+  if (obj?.amount && typeof obj.amount.toNumber === "function") {
+    serialized.amount = obj.amount.toNumber();
+  }
 
   return serialized;
 };
 
-/* Ensure user exists in DB */
+/* ------------------ Ensure user exists ------------------ */
+
 async function getOrCreateUser() {
   const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
 
   const clerkUser = await currentUser();
+
+  if (!clerkUser) {
+    throw new Error("User not found in Clerk");
+  }
+
+  const email =
+    clerkUser.emailAddresses?.[0]?.emailAddress || "unknown@email.com";
 
   const user = await db.user.upsert({
     where: { clerkUserId: userId },
     update: {},
     create: {
-      clerkUserId: clerkUser.id,
-      email: clerkUser.emailAddresses[0].emailAddress,
+      clerkUserId: userId,
+      email: email,
       name: clerkUser.firstName || "",
-      imageUrl: clerkUser.imageUrl,
+      imageUrl: clerkUser.imageUrl || "",
     },
   });
 
   return user;
 }
 
-  // Get User Accounts
-
+/* ------------------ Get User Accounts ------------------ */
 
 export async function getUserAccounts() {
   try {
@@ -57,12 +72,14 @@ export async function getUserAccounts() {
 
     return accounts.map(serializeTransaction);
   } catch (error) {
-    console.error(error);
-    throw new Error("Failed to fetch accounts");
+    console.error("Account fetch error:", error);
+
+    // return safe fallback instead of crashing page
+    return [];
   }
 }
 
-  // Create Account
+/* ------------------ Create Account ------------------ */
 
 export async function createAccount(data) {
   try {
@@ -83,7 +100,10 @@ export async function createAccount(data) {
     }
 
     const balanceFloat = parseFloat(data.balance);
-    if (isNaN(balanceFloat)) throw new Error("Invalid balance amount");
+
+    if (isNaN(balanceFloat)) {
+      throw new Error("Invalid balance amount");
+    }
 
     const existingAccounts = await db.account.findMany({
       where: { userId: user.id },
@@ -115,13 +135,16 @@ export async function createAccount(data) {
       data: serializeTransaction(account),
     };
   } catch (error) {
-    console.error(error);
-    throw new Error(error.message);
+    console.error("Create account error:", error);
+
+    return {
+      success: false,
+      message: error.message,
+    };
   }
 }
 
-  //Dashboard Data
-
+/* ------------------ Dashboard Data ------------------ */
 
 export async function getDashboardData() {
   try {
@@ -134,7 +157,8 @@ export async function getDashboardData() {
 
     return transactions.map(serializeTransaction);
   } catch (error) {
-    console.error(error);
-    throw new Error("Failed to fetch dashboard data");
+    console.error("Dashboard fetch error:", error);
+
+    return [];
   }
 }
