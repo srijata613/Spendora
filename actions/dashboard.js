@@ -6,9 +6,9 @@ import { request } from "@arcjet/next";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
-/* ------------------ Helpers ------------------ */
+/* ---------------- Helpers ---------------- */
 
-const serializeTransaction = (obj) => {
+const serializeDecimal = (obj) => {
   const serialized = { ...obj };
 
   if (obj?.balance && typeof obj.balance.toNumber === "function") {
@@ -22,7 +22,7 @@ const serializeTransaction = (obj) => {
   return serialized;
 };
 
-/* ------------------ Ensure user exists ------------------ */
+/* ---------------- Ensure user exists ---------------- */
 
 async function getOrCreateUser() {
   const { userId } = await auth();
@@ -34,7 +34,7 @@ async function getOrCreateUser() {
   const clerkUser = await currentUser();
 
   if (!clerkUser) {
-    throw new Error("User not found in Clerk");
+    throw new Error("Clerk user not found");
   }
 
   const email =
@@ -54,7 +54,7 @@ async function getOrCreateUser() {
   return user;
 }
 
-/* ------------------ Get User Accounts ------------------ */
+/* ---------------- Get User Accounts ---------------- */
 
 export async function getUserAccounts() {
   try {
@@ -70,16 +70,14 @@ export async function getUserAccounts() {
       },
     });
 
-    return accounts.map(serializeTransaction);
+    return accounts.map(serializeDecimal);
   } catch (error) {
     console.error("Account fetch error:", error);
-
-    // return safe fallback instead of crashing page
     return [];
   }
 }
 
-/* ------------------ Create Account ------------------ */
+/* ---------------- Create Account ---------------- */
 
 export async function createAccount(data) {
   try {
@@ -121,7 +119,8 @@ export async function createAccount(data) {
 
     const account = await db.account.create({
       data: {
-        ...data,
+        name: data.name,
+        type: data.type || "CURRENT", // ensure required enum exists
         balance: balanceFloat,
         userId: user.id,
         isDefault: shouldBeDefault,
@@ -132,7 +131,7 @@ export async function createAccount(data) {
 
     return {
       success: true,
-      data: serializeTransaction(account),
+      data: serializeDecimal(account),
     };
   } catch (error) {
     console.error("Create account error:", error);
@@ -144,7 +143,7 @@ export async function createAccount(data) {
   }
 }
 
-/* ------------------ Dashboard Data ------------------ */
+/* ---------------- Dashboard Data ---------------- */
 
 export async function getDashboardData() {
   try {
@@ -155,10 +154,9 @@ export async function getDashboardData() {
       orderBy: { date: "desc" },
     });
 
-    return transactions.map(serializeTransaction);
+    return transactions.map(serializeDecimal);
   } catch (error) {
     console.error("Dashboard fetch error:", error);
-
     return [];
   }
 }
