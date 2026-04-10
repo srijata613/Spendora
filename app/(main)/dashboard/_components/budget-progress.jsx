@@ -30,8 +30,16 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
   } = useFetch(updateBudget);
 
   const percentUsed = initialBudget
-    ? (currentExpenses / initialBudget.amount) * 100
+    ? Math.min((currentExpenses / initialBudget.amount) * 100, 100)
     : 0;
+
+  // progress color logic
+  const progressColor =
+    percentUsed > 85
+      ? "[&>div]:bg-red-500"
+      : percentUsed > 60
+      ? "[&>div]:bg-yellow-500"
+      : "[&>div]:bg-green-500";
 
   const handleUpdateBudget = async () => {
     const amount = parseFloat(newBudget);
@@ -124,7 +132,10 @@ export function BudgetProgress({ initialBudget, currentExpenses }) {
 
         {initialBudget && (
           <>
-            <Progress value={percentUsed} className="h-3" />
+            <Progress
+              value={percentUsed}
+              className={`h-3 ${progressColor}`}
+            />
 
             <div className="flex justify-end text-xs text-muted-foreground">
               {percentUsed.toFixed(1)}% used
