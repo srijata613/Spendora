@@ -24,6 +24,12 @@ export default function EmailTemplate({
   const categories = data?.stats?.byCategory || {};
   const insights = Array.isArray(data?.insights) ? data.insights : [];
 
+  /*
+  =========================
+  MONTHLY REPORT TEMPLATE
+  =========================
+  */
+
   if (type === "monthly-report") {
     return (
       <Html>
@@ -40,7 +46,8 @@ export default function EmailTemplate({
               Here’s your financial summary for {data?.month ?? "this month"}:
             </Text>
 
-            {/* Main Stats */}
+            {/* MAIN STATS */}
+
             <Section style={styles.statsContainer}>
               <div style={styles.card}>
                 <Text style={styles.cardLabel}>Total Income</Text>
@@ -60,7 +67,8 @@ export default function EmailTemplate({
               </div>
             </Section>
 
-            {/* Category Breakdown */}
+            {/* CATEGORY BREAKDOWN */}
+
             {Object.keys(categories).length > 0 && (
               <Section style={styles.section}>
                 <Heading style={styles.heading}>Expenses by Category</Heading>
@@ -74,7 +82,8 @@ export default function EmailTemplate({
               </Section>
             )}
 
-            {/* AI Insights */}
+            {/* AI INSIGHTS */}
+
             {insights.length > 0 && (
               <Section style={styles.section}>
                 <Heading style={styles.heading}>Spendora Insights</Heading>
@@ -96,6 +105,12 @@ export default function EmailTemplate({
       </Html>
     );
   }
+
+  /*
+  =========================
+  BUDGET ALERT TEMPLATE
+  =========================
+  */
 
   if (type === "budget-alert") {
     const remaining = budgetAmount - totalExpenses;
@@ -122,7 +137,8 @@ export default function EmailTemplate({
               You’ve used {percentageUsed.toFixed(1)}% of your monthly budget.
             </Text>
 
-            {/* Progress Bar */}
+            {/* PROGRESS BAR */}
+
             <Section style={styles.progressWrapper}>
               <div style={styles.progressBackground}>
                 <div
@@ -139,7 +155,8 @@ export default function EmailTemplate({
               </Text>
             </Section>
 
-            {/* Budget Cards */}
+            {/* BUDGET CARDS */}
+
             <Section style={styles.statsContainer}>
               <div style={styles.card}>
                 <Text style={styles.cardLabel}>Budget Amount</Text>
@@ -162,7 +179,12 @@ export default function EmailTemplate({
     );
   }
 
-  // fallback
+  /*
+  =========================
+  FALLBACK
+  =========================
+  */
+
   return (
     <Html>
       <Head />
@@ -174,6 +196,12 @@ export default function EmailTemplate({
     </Html>
   );
 }
+
+/*
+=========================
+STYLES
+=========================
+*/
 
 const styles = {
   body: {
