@@ -15,9 +15,10 @@ model User {
   name          String?
   imageUrl      String?
 
-  transactions  Transaction[]
-  accounts      Account[]
-  budgets       Budget[]
+  transactions      Transaction[]
+  accounts          Account[]
+  budgets           Budget[]
+  categoryBudgets   CategoryBudget[]   // ← added relation
 
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -93,6 +94,23 @@ model Budget {
 
   @@index([userId])
   @@map("budgets")
+}
+
+model CategoryBudget {
+  id        String   @id @default(uuid())
+
+  category  String
+  amount    Decimal  @db.Decimal(12,2)
+
+  rollover  Boolean  @default(true)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 enum TransactionType {
