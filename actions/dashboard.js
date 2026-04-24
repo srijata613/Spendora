@@ -2,6 +2,7 @@
 
 import aj from "@/lib/arcjet";
 import { db } from "@/lib/prisma";
+import { convertToUSD } from "@/lib/currency";
 import { request } from "@arcjet/next";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
@@ -9,17 +10,37 @@ import { revalidatePath } from "next/cache";
 /* ---------------- Helpers ---------------- */
 
 const serializeDecimal = (obj) => {
-  const serialized = { ...obj };
+  if (!obj) return obj;
 
-  if (obj?.balance && typeof obj.balance.toNumber === "function") {
-    serialized.balance = obj.balance.toNumber();
+  if (Array.isArray(obj)) {
+    return obj.map(serializeDecimal);
   }
 
-  if (obj?.amount && typeof obj.amount.toNumber === "function") {
-    serialized.amount = obj.amount.toNumber();
+  if (obj instanceof Date) {
+    return obj; // preserve valid date objects
   }
 
-  return serialized;
+  if (typeof obj === "object") {
+    const serialized = {};
+
+    for (const key in obj) {
+      const value = obj[key];
+
+      if (value && typeof value.toNumber === "function") {
+        serialized[key] = value.toNumber();
+      } else if (value instanceof Date) {
+        serialized[key] = value;
+      } else if (typeof value === "object") {
+        serialized[key] = serializeDecimal(value);
+      } else {
+        serialized[key] = value;
+      }
+    }
+
+    return serialized;
+  }
+
+  return obj;
 };
 
 /* -------- Normalize recurring to monthly -------- */
@@ -57,16 +78,22 @@ async function getOrCreateUser() {
   const email =
     clerkUser.emailAddresses?.[0]?.emailAddress || "unknown@email.com";
 
-  const user = await db.user.upsert({
+  // Check if user already exists
+  let user = await db.user.findUnique({
     where: { clerkUserId: userId },
-    update: {},
-    create: {
-      clerkUserId: userId,
-      email: email,
-      name: clerkUser.firstName || "",
-      imageUrl: clerkUser.imageUrl || "",
-    },
   });
+
+  // If not, create it
+  if (!user) {
+    user = await db.user.create({
+      data: {
+        clerkUserId: userId,
+        email: email,
+        name: clerkUser.firstName || "",
+        imageUrl: clerkUser.imageUrl || "",
+      },
+    });
+  }
 
   return user;
 }
@@ -171,9 +198,24 @@ export async function getDashboardData() {
     const transactionsRaw = await db.transaction.findMany({
       where: { userId: user.id },
       orderBy: { date: "desc" },
+      include: {account: true},
     });
 
-    const transactions = transactionsRaw.map(serializeDecimal);
+    const transactions = transactionsRaw.map((t) => {
+      const serialized = serializeDecimal(t);
+      
+      const amount = Number(serialized.amount);
+      
+      const normalizedAmount = convertToUSD(
+        amount,
+        t.account?.currency || "USD"
+      );
+      
+      return {
+        ...serialized,
+        normalizedAmount,
+      };
+    });
 
     /* ---- Recurring Subscriptions ---- */
 
@@ -212,5 +254,37 @@ export async function getDashboardData() {
       subscriptions: [],
       totalMonthlySubscriptions: 0,
     };
+  }
+}
+
+export async function getUpcomingBills() {
+  try {
+    const user = await getOrCreateUser();
+
+    const today = new Date();
+
+    const bills = await db.transaction.findMany({
+      where: {
+        userId: user.id,
+        isRecurring: true,
+        nextRecurringDate: {
+          gte: today,
+        },
+      },
+      orderBy: {
+        nextRecurringDate: "asc",
+      },
+      take: 10,
+    });
+
+    return bills.map((bill) => ({
+      id: bill.id,
+      name: bill.description || "Bill",
+      amount: Number(bill.amount),
+      dueDate: bill.nextRecurringDate,
+    }));
+  } catch (error) {
+    console.error("Upcoming bills error:", error);
+    return [];
   }
 }

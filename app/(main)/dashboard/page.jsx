@@ -15,22 +15,39 @@ import { SubscriptionCard } from "./_components/subscription-card";
 import CategoryBudgetCard from "./_components/category-budget-card";
 import CreateCategoryBudgetDrawer from "@/components/create-category-budget-drawer";
 
+import UpcomingBills from "./_components/upcoming-bills";
+import CreateBillDrawer from "@/components/create-bill-drawer";
+import { getUpcomingBills } from "@/actions/dashboard";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { getUserDebts } from "@/actions/debt";
+import DebtPlanner from "./_components/debt-planner";
 
 export default async function DashboardPage() {
 
-  const [accounts, dashboardData, categoryBudgets, categorySpending] =
-    await Promise.all([
-      getUserAccounts(),
-      getDashboardData(),
-      getCategoryBudgets(),
-      getCategorySpending(),
-    ]);
+  const [
+    accounts,
+    dashboardData,
+    categoryBudgets,
+    categorySpending,
+    upcomingBills,
+    debts
+  ] = await Promise.all([
+    getUserAccounts(),
+    getDashboardData(),
+    getCategoryBudgets(),
+    getCategorySpending(),
+    getUpcomingBills(),
+    getUserDebts(),
+  ]);
 
-  const { transactions, subscriptions, totalMonthlySubscriptions } =
-    dashboardData || {};
+  const {
+    transactions = [],
+    subscriptions = [],
+    totalMonthlySubscriptions = 0
+  } = dashboardData || {};
 
   const defaultAccount = accounts?.find((account) => account.isDefault);
 
@@ -43,16 +60,17 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
 
-      {/* Budget Progress */}
-      <BudgetProgress
-        initialBudget={budgetData?.budget}
-        currentExpenses={budgetData?.currentExpenses || 0}
-      />
+      {/* Monthly Budget */}
+      {defaultAccount && (
+        <BudgetProgress
+          initialBudget={budgetData?.budget}
+          currentExpenses={budgetData?.currentExpenses || 0}
+        />
+      )}
 
       {/* Category Budgets */}
       <div className="space-y-4">
 
-        {/* Add Category Budget Button */}
         <CreateCategoryBudgetDrawer>
           <Button variant="outline" size="sm">
             + Add Category Budget
@@ -65,24 +83,24 @@ export default async function DashboardPage() {
             {categoryBudgets.map((budget) => {
 
               const currentSpent =
-              categorySpending.current.find(
-                (s) =>
-                  s.category?.toLowerCase() ===
-                budget.category?.toLowerCase()
-              )?.amount || 0;
-              
+                categorySpending.current.find(
+                  (s) =>
+                    s.category?.toLowerCase() ===
+                    budget.category?.toLowerCase()
+                )?.amount || 0;
+
               const previousSpent =
-              categorySpending.previous.find(
-                (s) =>
-                  s.category?.toLowerCase() ===
-                budget.category?.toLowerCase()
-              )?.amount || 0;
-              
+                categorySpending.previous.find(
+                  (s) =>
+                    s.category?.toLowerCase() ===
+                    budget.category?.toLowerCase()
+                )?.amount || 0;
+
               const rollover =
-              budget.rollover
-              ? Math.max(Number(budget.amount) - previousSpent, 0)
-              : 0;
-              
+                budget.rollover
+                  ? Math.max(Number(budget.amount) - previousSpent, 0)
+                  : 0;
+
               const spent = currentSpent;
               const limit = Number(budget.amount) + rollover;
 
@@ -102,19 +120,37 @@ export default async function DashboardPage() {
 
       </div>
 
-      {/* Subscriptions Tracker */}
+      {/* Subscriptions */}
       <SubscriptionCard
-        subscriptions={subscriptions || []}
-        total={totalMonthlySubscriptions || 0}
+        subscriptions={subscriptions}
+        total={totalMonthlySubscriptions}
       />
+
+      {/* BILL REMINDER FEATURE */}
+      <div className="space-y-4">
+
+        <CreateBillDrawer>
+          <Button variant="outline" size="sm">
+            + Add Bill Reminder
+          </Button>
+        </CreateBillDrawer>
+
+        <UpcomingBills bills={upcomingBills || []} />
+
+        <UpcomingBills />
+
+        {/* Debt Planner */}
+        <DebtPlanner debts={debts} />
+
+      </div>
 
       {/* Dashboard Overview */}
       <DashboardOverview
         accounts={accounts}
-        transactions={transactions || []}
+        transactions={transactions}
       />
 
-      {/* Accounts Grid */}
+      {/* Accounts */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 
         <CreateAccountDrawer>
