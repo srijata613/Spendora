@@ -7,6 +7,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import aj from "@/lib/arcjet";
 import { request } from "@arcjet/next";
 
+import { categorizeTransaction } from "@/lib/ai/categorize-transaction";
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const serializeAmount = (obj) => ({
@@ -61,6 +63,16 @@ export async function createTransaction(data) {
       },
     });
 
+    // AI category suggestion (only if user didn't manually choose one)
+    let category = data.category;
+    if (!category && data.description) {
+      const suggestion = categorizeTransaction(data.description);
+      
+      if (suggestion) {
+        category = suggestion;
+      }
+    }
+
     if (!account) {
       throw new Error("Account not found");
     }
@@ -74,6 +86,7 @@ export async function createTransaction(data) {
       const newTransaction = await tx.transaction.create({
         data: {
           ...data,
+          category: category || data.category,
           userId: user.id,
           nextRecurringDate:
             data.isRecurring && data.recurringInterval

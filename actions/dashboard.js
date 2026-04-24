@@ -22,6 +22,23 @@ const serializeDecimal = (obj) => {
   return serialized;
 };
 
+/* -------- Normalize recurring to monthly -------- */
+
+function normalizeToMonthly(amount, interval) {
+  switch (interval) {
+    case "DAILY":
+      return amount * 30;
+    case "WEEKLY":
+      return amount * 4;
+    case "MONTHLY":
+      return amount;
+    case "YEARLY":
+      return amount / 12;
+    default:
+      return amount;
+  }
+}
+
 /* ---------------- Ensure user exists ---------------- */
 
 async function getOrCreateUser() {
@@ -120,7 +137,7 @@ export async function createAccount(data) {
     const account = await db.account.create({
       data: {
         name: data.name,
-        type: data.type || "CURRENT", // ensure required enum exists
+        type: data.type || "CURRENT",
         balance: balanceFloat,
         userId: user.id,
         isDefault: shouldBeDefault,
@@ -149,14 +166,51 @@ export async function getDashboardData() {
   try {
     const user = await getOrCreateUser();
 
-    const transactions = await db.transaction.findMany({
+    /* ---- Transactions ---- */
+
+    const transactionsRaw = await db.transaction.findMany({
       where: { userId: user.id },
       orderBy: { date: "desc" },
     });
 
-    return transactions.map(serializeDecimal);
+    const transactions = transactionsRaw.map(serializeDecimal);
+
+    /* ---- Recurring Subscriptions ---- */
+
+    const recurring = transactionsRaw.filter((t) => t.isRecurring);
+
+    const subscriptions = recurring.map((sub) => {
+      const amount = Number(sub.amount);
+
+      const monthlyCost = normalizeToMonthly(
+        amount,
+        sub.recurringInterval
+      );
+
+      return {
+        id: sub.id,
+        name: sub.description || "Subscription",
+        monthlyCost,
+      };
+    });
+
+    const totalMonthlySubscriptions = subscriptions.reduce(
+      (sum, sub) => sum + sub.monthlyCost,
+      0
+    );
+
+    return {
+      transactions,
+      subscriptions,
+      totalMonthlySubscriptions,
+    };
   } catch (error) {
     console.error("Dashboard fetch error:", error);
-    return [];
+
+    return {
+      transactions: [],
+      subscriptions: [],
+      totalMonthlySubscriptions: 0,
+    };
   }
 }
