@@ -8,7 +8,7 @@ import aj from "@/lib/arcjet";
 import { request } from "@arcjet/next";
 
 import { categorizeTransaction } from "@/lib/ai/categorize-transaction";
-
+import { getLearnedCategory } from "@/lib/ai/learned-categorizer";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const serializeAmount = (obj) => ({
@@ -66,10 +66,15 @@ export async function createTransaction(data) {
     // AI category suggestion (only if user didn't manually choose one)
     let category = data.category;
     if (!category && data.description) {
-      const suggestion = categorizeTransaction(data.description);
+      const learned = await getLearnedCategory(user.id, data.description);
       
-      if (suggestion) {
-        category = suggestion;
+      if (learned) {
+        category = learned;
+      } else {
+        const suggestion = categorizeTransaction(data.description);
+        if (suggestion) {
+          category = suggestion;
+        }
       }
     }
 
