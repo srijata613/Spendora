@@ -6,6 +6,7 @@ import { convertToUSD } from "@/lib/currency";
 import { request } from "@arcjet/next";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { Currency } from "lucide-react";
 
 /* ---------------- Helpers ---------------- */
 
@@ -105,7 +106,18 @@ export async function getUserAccounts() {
     const user = await getOrCreateUser();
 
     const accounts = await db.account.findMany({
-      where: { userId: user.id },
+      where: {
+        OR: [
+          { userId: user.id },
+          {
+            members: {
+              some: {
+                userId: user.id,
+              },
+            },
+          },
+        ],
+      },
       orderBy: { createdAt: "desc" },
       include: {
         _count: {
@@ -166,8 +178,17 @@ export async function createAccount(data) {
         name: data.name,
         type: data.type || "CURRENT",
         balance: balanceFloat,
+        currency: data.currency || "USD",
         userId: user.id,
         isDefault: shouldBeDefault,
+      },
+    });
+
+    await db.accountMember.create({
+      data: {
+        accountId: account.id,
+        userId: user.id,
+        role: "OWNER",
       },
     });
 

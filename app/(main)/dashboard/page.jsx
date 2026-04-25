@@ -24,6 +24,14 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { getUserDebts } from "@/actions/debt";
 import DebtPlanner from "./_components/debt-planner";
+import FinancialHealthCard from "./_components/financial-health-card";
+import { getFinancialHealthScore } from "@/actions/financial-health";
+
+import { getSpendingInsights } from "@/actions/spending-insights";
+import SpendingInsightsCard from "./_components/spending-insights-card";
+import { getAnomalyInsights } from "@/actions/anomaly-insights";
+import AnomalyCard from "./_components/anomaly-card";
+import AIFinanceChat from "@/components/ai-finance-chat";
 
 export default async function DashboardPage() {
 
@@ -33,7 +41,10 @@ export default async function DashboardPage() {
     categoryBudgets,
     categorySpending,
     upcomingBills,
-    debts
+    debts,
+    financialHealth,
+    insights,
+    anomalies
   ] = await Promise.all([
     getUserAccounts(),
     getDashboardData(),
@@ -41,6 +52,9 @@ export default async function DashboardPage() {
     getCategorySpending(),
     getUpcomingBills(),
     getUserDebts(),
+    getFinancialHealthScore(),
+    getSpendingInsights(),
+    getAnomalyInsights(),
   ]);
 
   const {
@@ -59,6 +73,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+
+      <FinancialHealthCard score={financialHealth} />
+
+      <SpendingInsightsCard insights={insights} />
+
+      <AnomalyCard anomalies={anomalies} />
 
       {/* Monthly Budget */}
       {defaultAccount && (
