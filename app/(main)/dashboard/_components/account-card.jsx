@@ -16,8 +16,8 @@ import { updateDefaultAccount } from "@/actions/account";
 import { deleteAccount } from "@/actions/delete-account";
 import { toast } from "sonner";
 
-export function AccountCard({ account }) {
-  const { name, type, balance, id, isDefault } = account;
+export function AccountCard({ account, currentUserId }) {
+  const { name, type, balance, currency, id, isDefault, userId, members } = account;
 
   const {
     loading: updateDefaultLoading,
@@ -94,9 +94,19 @@ export function AccountCard({ account }) {
       <Link href={`/account/${id}`} className="block">
 
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pr-8">
-          <CardTitle className="text-sm font-medium capitalize">
-            {name}
-          </CardTitle>
+
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-sm font-medium capitalize">
+              {name}
+            </CardTitle>
+
+            {/* Shared badge */}
+            {userId !== currentUserId && (
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
+                Shared
+              </span>
+            )}
+          </div>
 
           <Switch
             checked={isDefault}
@@ -107,16 +117,33 @@ export function AccountCard({ account }) {
         </CardHeader>
 
         <CardContent>
+
           <div className="text-2xl font-bold">
-            ${parseFloat(balance).toFixed(2)}
+            {currency || "USD"} {parseFloat(balance).toFixed(2)}
           </div>
 
           <p className="text-xs text-muted-foreground">
             {type.charAt(0) + type.slice(1).toLowerCase()} Account
           </p>
+
+          {/* Member avatars */}
+          {members?.length > 1 && (
+            <div className="flex mt-3 -space-x-2">
+              {members.slice(0, 4).map((m) => (
+                <img
+                  key={m.id}
+                  src={m.user.imageUrl || "/avatar.png"}
+                  className="w-6 h-6 rounded-full border"
+                  title={m.user.email}
+                />
+              ))}
+            </div>
+          )}
+
         </CardContent>
 
         <CardFooter className="flex justify-between text-sm text-muted-foreground">
+
           <div className="flex items-center">
             <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
             Income
@@ -126,6 +153,7 @@ export function AccountCard({ account }) {
             <ArrowDownRight className="mr-1 h-4 w-4 text-red-500" />
             Expense
           </div>
+
         </CardFooter>
 
       </Link>

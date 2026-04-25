@@ -35,6 +35,12 @@ export async function getAccountWithTransactions(accountId) {
       transactions: {
         orderBy: { date: "desc" },
       },
+
+      members: {
+        include: {
+          user: true,
+        },
+      },
       _count: {
         select: { transactions: true },
       },

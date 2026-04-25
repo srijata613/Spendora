@@ -4,9 +4,10 @@ import { BarLoader } from "react-spinners";
 import { TransactionTable } from "../_components/transaction-table";
 import { notFound } from "next/navigation";
 import { AccountChart } from "../_components/account-chart";
+import InviteMemberDrawer from "@/components/invite-member-drawer";
 
 export default async function AccountPage({ params }) {
-  const { id } = await params; // unwrap params Promise
+  const { id } = await params;
 
   const accountData = await getAccountWithTransactions(id);
 
@@ -18,6 +19,8 @@ export default async function AccountPage({ params }) {
 
   return (
     <div className="space-y-8 px-5">
+
+      {/* Header */}
       <div className="flex gap-4 items-end justify-between">
         <div>
           <h1 className="text-5xl sm:text-6xl font-bold tracking-tight gradient-title capitalize">
@@ -31,7 +34,7 @@ export default async function AccountPage({ params }) {
 
         <div className="text-right pb-2">
           <div className="text-xl sm:text-2xl font-bold">
-            ${parseFloat(account.balance).toFixed(2)}
+            {account.currency || "USD"} {parseFloat(account.balance).toFixed(2)}
           </div>
 
           <p className="text-sm text-muted-foreground">
@@ -39,6 +42,40 @@ export default async function AccountPage({ params }) {
           </p>
         </div>
       </div>
+
+      {/* Members Section (safe addition) */}
+      {account.members?.length > 0 && (
+        <div className="border rounded-xl p-4 space-y-3">
+          
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Members</h3>
+            <InviteMemberDrawer accountId={account.id} />
+            </div>
+            
+            {account.members.map((m) => (
+              <div key={m.id} className="flex justify-between text-sm">
+                <span>{m.user.email}</span>
+                <span className="text-muted-foreground">{m.role}</span>
+                </div>
+              ))}
+              
+
+        </div>
+      )}
+
+      { /* Account Members */}
+      {account.members?.length > 1 && (
+        <div className="border rounded-xl p-4">
+          <h3 className="font-semibold mb-2">Members</h3>
+
+          {account.members.map((m) => (
+            <div key={m.id} className="flex justify-between text-sm">
+              <span>{m.user.email}</span>
+              <span className="text-muted-foreground">{m.role}</span>
+              </div>
+          ))}
+          </div>
+      )}
 
       {/* Chart Section */}
       <Suspense
@@ -53,6 +90,7 @@ export default async function AccountPage({ params }) {
       >
         <TransactionTable transactions={transactions} />
       </Suspense>
+
     </div>
   );
 }
